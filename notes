@@ -1,0 +1,1068 @@
+AANAND IYER: All right, good morning, everyone.
+So in this session, we'll talk about Kubeflow Pipelines
+and how it can help you accelerate development
+of production machine learning applications.
+My name is Aanand Iyer, and I am a product manager in the Google
+Cloud AI platform team.
+We're very fortunate to have, as my co-presenter,
+Willem Pienaar from GOJEK.
+GOJEK is a fast-growing customer of Google Cloud,
+and William is a lead data scientist at GOJEK.
+And he'll talk about how they're leveraged Kubeflow
+Pipelines for a real-world production machine learning
+use case.
+For the first 20 minutes or so, I'll
+give you an overview of Kubeflow Pipelines,
+and then I'll hand things over to Willem
+for the more interesting part of the presentation, which
+includes a demo.
+Towards the very end, we will have a Q&A session.
+We'll be taking questions from all of you.
+And in fact, while the session is going on,
+you can start adding your questions to the Dory Q&A app.
+I'll give you a couple seconds to actually
+quickly look at the instructions for adding questions
+to the Dory app.
+All right.
+With that, let's get started.
+So first, let me start with the motivation behind Kubeflow
+Pipelines.
+Why did we start this project in the first place?
+We started this project because building and deploying
+real-world machine learning applications
+is hard and costly because of the lack of tooling
+for the end-to-end development and deployment lifecycle,
+or the end-to-end process.
+Let me elaborate on that a little bit.
+Often, when we talk about building a machine learning
+application, we're talking about developing the core model.
+And the model development happens
+with libraries like TensorFlow and Python, Scikit-learn,
+XGBoost, and so forth.
+So often, we talk about developing the model
+and then deploying the model.
+And, yes, absolutely, that is at the heart of developing
+a machine learning application.
+But when you are building, deploying,
+and running a machine learning application in production,
+that entails many other stages.
+A production machine learning application
+is often running continuously.
+It's running 24/7 by 365.
+Data is coming in on a regular basis,
+either streaming in or coming in as batches
+on periodic intervals.
+Models have to be constantly updated and improved
+upon and deployed.
+And of course, before you deploy any newly-trained model,
+you have to make sure the new models are safe for deployment.
+For the data that is streaming in,
+you have to do data pre-processing and data
+validation and make sure that there are no data
+quality issues.
+Then, after that, you do featured engineering followed
+by model training with hyperparameter tuning,
+followed by model validation and so on and so forth.
+So what is needed is simple tooling
+to orchestrate and manage these multi-phase machine learning
+workflows, and the ability to run them reliably
+and repeatedly.
+And that is the problem that Kubeflow Pipelines
+aims to solve.
+So actually, before we move on, I
+should call out that this diagram.
+It's not a new diagram we created.
+It's actually from a fairly seminal Google paper
+that was authored a few years back that talks
+about the hidden debt in building machine learning
+applications.
+So actually, I would like to have a quick show of hands
+to see if folks have actually seen this diagram
+or something similar before.
+So please raise your hands if you've seen it.
+All right, wow.
+That's actually quite a few of you.
+So possibly, I am preaching to the choir here,
+but that's awesome.
+All right, so before we get into the specifics of Kubeflow
+Pipelines, I want to provide a little bit more context.
+Kubeflow Pipelines is part of the open source Kubeflow
+project.
+Open source Kubeflow is a seamlessly integrated
+collection of tools and services for the full production
+machine learning lifecycle.
+Everything from distributed, scalable model training
+to deploying models for online serving at scale,
+to notebooks with Jupyter hub, and then
+workflow orchestration and metadata
+and workflow management with Kubeflow Pipelines,
+and so on and so forth.
+So Kubeflow Pipelines is a part of this larger open source
+project called Kubeflow.
+Kubeflow services are built to run on top of Kubernetes.
+And we chose Kubernetes as the underlying platform
+because, at this point, Kubernetes
+is almost a de facto for anything that entails
+cluster compute at scale.
+So Kubernetes provides the scalability,
+and it also enables hybrid deployments
+because Kubeflow flow can run on any Kubernetes cluster.
+So that cluster can be running on Google Cloud
+or it can be running on-prem, or multiple other clouds.
+And of course, with the Anthos announcement
+made two days back, you can actually
+run Google on top of Anthos and help
+Anthos manage these deployments in multiple environments.
+And of course, on Google Cloud, Kubeflow
+is easy to deploy with Google Kubernetes Engine or Anthos.
+And in many cases, for applications authored
+with the Kubeflow SDKs, you can run them
+on fully-managed services in the Cloud AI platform.
+So I wanted to provide that bit of context
+before we dove into the specifics of Kubeflow
+Pipelines.
+Now, the capabilities provided by Kubeflow Pipelines
+can largely be put under three buckets--
+machine learning workflow orchestration,
+sharing reusability and easy composability,
+and rapid, reliable experimentation.
+So let's start with the first one, machine learning
+workflow orchestration.
+To make things more concrete, let's look
+at a screenshot of a workflow that was
+run with Kubeflow Pipelines.
+So for any workflow that you run with Kubeflow Pipelines,
+you get this rich visual depiction
+of the topology of the workflows.
+So you can see that and understand what was run.
+Of course, this is just an illustrative machine
+learning workflow.
+Of course, when you build your own machine learning workflows,
+you can have all sorts of different topologies.
+For a given step of the workflow,
+you can use your own tools and libraries of choice.
+A given step of the workflow can be a single-node instance that
+can run with different types of hardware, GPUs and TPUs,
+or it can also be--
+a given step can be something that
+runs in a distributed fashion.
+So long story short, this is just an illustrative workflow.
+And of course, you can build all sorts
+of interesting topologies and applications and architectures.
+Now, let's look at this specific example.
+In this particular example-- just
+to make things more concrete-- this particular example,
+it starts with a data pre-processing and data
+validation step followed by a feature engineering step.
+And after that, we're forking out
+and training three different kinds of models in parallel.
+And each of these model training nodes
+encapsulates hyperparameter tuning within it.
+Then, after that, we take the best models
+trained in each of these forks and run them on a test data set
+and analyze them and compare them and then pick
+the best model.
+And if that model happens to meet our performance threshold,
+we can deploy it to an online serving endpoint.
+So that is an example of the type
+of workflows you can build and deploy with Kubeflow Pipelines.
+For each step of the workflow, you actually
+have access to all the relevant metadata and metrics
+at your fingertips.
+So, as an example, let's take the training step.
+If it produced an auto c-curve, you
+can visualize it right there.
+Or if it produced the rich metadata that
+can be visualized through TensorBoard,
+TensorBoard is just one click away.
+So long story short, all the relevant information
+that you need is available right there at your fingertips.
+For each step of the workflow, you
+have access to the configuration parameters that were passed in,
+and you can also see what were the inputs to that step
+and what were the outputs produced.
+So for any module trained with Kubeflow Pipelines,
+you will not have to wonder, or you
+won't have the problem of not being able to answer
+how that model was produced.
+Because for any model trained with Kubeflow Pipelines,
+you can go back to the corresponding execution run
+and you have all the relevant information at your fingertips.
+And this is particularly important for production
+machine learning workflows.
+So now, let's take a peek under the hood
+and let's try to understand what exactly constitutes a Kubeflow
+Pipeline.
+So Kubeflow Pipeline consists of multiple steps,
+and each step of the Kubeflow Pipeline
+is a containerized task.
+We're talking about production machine learning workflows,
+and containers are the industry standard solution
+for portability, for repeatability,
+and encapsulation of dependencies.
+So we don't want to reinvent the wheel.
+That's why we built a solution that leverages containers
+at the heart of it.
+And of course, because this gets deployed on Kubernetes,
+of course we were going to choose containers.
+Now, as I mentioned previously, each step of the workflow
+can be very heterogeneous, can run
+on different types of hardware.
+It can be a simple Python script or something that
+runs in a distributed fashion.
+It can be an Apache Spark job, or it could be a distributed
+model training job.
+Steps of the workflow can also call out
+to other Google services.
+So those are the steps of the workflow.
+Now, the other key aspect of the workflow
+is definition of the sequence, or the topology
+of the workflow.
+The sequence in which the steps should run
+and how the data flows between these steps,
+how to connect the outputs of one
+step with the inputs of downstream steps.
+And then, the third aspect of defining a pipeline
+is defining the set of input parameters
+that the end user has to provide.
+So the containerized steps, or each step
+packaged as a container, the definition of the workflow
+topology, and the specification of the input parameters
+together constitute a Kubeflow Pipeline.
+So now, let's see how you author a Kubeflow Pipeline.
+When we spoke to the target audience-- data scientists,
+machine learning engineers, and machine learning
+practitioners-- time and again, everyone
+said Python is their preferred lingua franca.
+So we said, OK, let's provide an SDK that
+is fairly intuitive and native to Python coders.
+So that's what we have provided.
+You get a fairly intuitive Python SDK
+that you use to specify the topology of your workflow.
+And specifying the topology, it's
+basically as simple as calling Python functions that represent
+the various steps of your workflow
+and connecting them with inputs and outputs.
+I won't go into too many details of the Python SDK
+and, actually, in the next section of the talk,
+Willem, as he's doing his demo, will provide more details
+about the SDK.
+And of course, the SDK is a broad topic in and of itself.
+So I'd request you to look at the Kubeflow Pipelines
+documentation to learn more about the SDK.
+Now, at this point, you may be wondering, but wait a minute,
+I said each step of the workflow is a containerized task.
+And here I am talking about defining the workflow
+with a Python SDK and calling the steps Python functions.
+So, there's some disconnect here.
+Valid observation.
+In its simplest form--
+because we're orchestrating containers--
+as long as the containers follow a protocol
+on how they accept inputs and how they produce outputs,
+any containerized task can be converted into a workflow step.
+And so that provides flexibility.
+In fact, we have a customer that has
+taken Fortran libraries that do numerical analysis,
+put them in a container, and called
+that particular container as a task in a Kubeflow workflow.
+So this provides a lot of flexibility, the ability
+to take a containerized task and convert it
+into a separate workflow.
+And the way you do that is you define a Python function
+wrapper for that container by invoking this SDK function
+called the container ops.
+You call the container op and you
+convert the Python wrapper function
+that you can now use while you're
+defining the workflow topology.
+But we realized that our target audience-- data scientists
+and machine learning practitioners--
+they don't come in and build docker
+containers on a daily basis.
+Rather, they're not directly dealing
+with docker on a daily basis.
+And in many cases, for the most part--
+and we'll continue to improve upon this--
+for the most part, the dockerization
+becomes an implementation detail.
+So if you're writing a step of the workflow with Python,
+we provide simple utilities and function decorators
+to take your Python code and package it up automatically
+as a containerized task that you can
+call as a step of the workflow.
+So a key aspect here is while, under the hood,
+each task is a container, for the most part,
+machine learning practitioners and data scientists
+will deal with their Python code and we
+take care of the mechanics of dockerization.
+We simplify the dockerization for you.
+And of course, if you're running it on Google Cloud,
+you are going to call and leverage
+Google Cloud's amazing fully-managed solutions
+for data analytics and machine learning
+model training and so forth.
+And for these services, we give you out-of-the-box connectors.
+So again, you don't have to focus on the mechanics
+of calling out these services.
+We simplify that for you.
+You focus on your code and you use these out-of-the-box
+connectors.
+And of course, we will continue to improve upon this stuff.
+All right.
+So now, let's look at the second key value proposition
+of Kubeflow Pipelines, which is sharing
+reusability and composability.
+And the key premise here is most machine learning applications
+today, they're built as bespoke applications.
+But as machine learning becomes more mainstream,
+it becomes a key aspect of--
+it goes mainstream.
+It's a key aspect embedded into multiple applications.
+You need a faster way to build machine learning applications,
+and the best way to do that is the ability
+to reuse the great work that others have done.
+You don't want to always start from scratch.
+If someone else has built an amazing workflow
+or an amazing component that can be
+used as a part of the workflow, we want to enable that.
+We want you to be able to find it easily, quickly, reuse it,
+and you're good to go.
+And, of course, you'll customize it for your specific needs.
+So with Kubeflow Pipelines, once you've defined the workflow,
+you can package it up as a zip file.
+And that zip file can be shared with others,
+and they can run it on their own Kubeflow cluster.
+And because each task is containerized,
+you're not worried about the portability.
+So package up your Kubeflow Pipeline as a zip file
+and give it to--
+let's just say you develop the workflow on your development
+cluster and you've tested it it looks good.
+And you want to hand it off to the production
+team that will deploy it on the production cluster.
+Great, just package it up as a zip file
+and hand it over to them.
+And often, what you want to do is, if you're working,
+say, in a large organization or you're
+part of a broader community, you want
+to build an amazing application and share it with others
+so that they can leverage it and run it and build upon it.
+So, if I were to find a Kubeflow application packaged as a zip
+file from someone else, I can load it up
+in my Kubeflow cluster, and I will get this UI--
+a UI form that is automatically created based on the inputs
+accepted by that pipeline.
+I'll get that UI form and, without having
+to write too much code, I can actually
+fill in the parameters of the UI form
+and I can try out a Kubeflow application very easily.
+So that's a key aspect of being able to reuse and quickly
+try out the work that someone else has done.
+And this reusability is not just for full end-to-end machine
+learning workflows or a complete pipeline.
+We've actually made it such that an individual step
+of a workflow can be packaged up as a reusable component.
+So let's just say you're doing some very interesting feature
+engineering, or you've come up with a very interesting way
+to do model analysis that you want everyone
+within your organization to follow.
+Well, great.
+Author that as a usable Kubeflow Pipeline component
+and they can use it easily within their own custom
+workflows.
+And because we're talking about reuse and share,
+I have to give a shout-out to the AI Hub.
+It's a product we launched publicly yesterday,
+and the AI Hub is your one-stop shop for sharing and discovery
+of relevant machine learning assets.
+It has multiple types of machine learning assets, from models
+to notebooks and so forth.
+And of course, a noteworthy category of assets in AI Hub
+will be Kubeflow Pipelines and Kubeflow Pipeline components.
+And just to make things more concrete,
+I want to give you an example of how easy it
+is to find a reusable component in the AI hub
+and use it as a part of your own custom machine learning, custom
+Kubeflow Pipeline.
+It literally is a couple lines of code.
+So, you first start with this lowered component statement.
+You go to the AI Hub, you find your Kubeflow Pipeline usable
+component.
+There'll be a Copy URL button.
+You hit the Copy URL button, you get that URL.
+You then use it in this load component statement
+and you get the Python function representation of that step.
+And now you can use that step as a part of your workflow
+when you're defining your workflow.
+So long story short, this whole aspect
+of reusing the great work that others have done,
+or if you've done great work, being
+able to share that with others is a key aspect of Kubeflow
+Pipelines, in conjunction with AI Hub aims to enable.
+And that's a key aspect of scaling out
+production machine learning.
+Now, let's talk about the third key value proposition
+of Kubeflow Pipelines.
+And to motivate this, I actually want
+to call out a quote from one of the winners of the latest
+gaggle 1 million prize competition.
+So one of the members of the team that won the competition
+said that for every idea that worked,
+they tried 100 ideas that failed.
+And that is the nature of production machine learning.
+It's an applied science.
+You have to try many different ideas
+to find the ones that would work on your data
+for your application.
+So, long story short, we want to make it easy
+for you to rapidly iterate on your ideas,
+but do so in a reliable and manageable way.
+So, for any workflow or pipeline that
+is run on the Kubeflow Pipelines environment--
+on a Kubeflow cluster--
+you get the full historical view of all the prior runs, as well
+as your current runs.
+Not only that, you actually have filtering and search
+functionality to quickly find a past run.
+And once you find a past run that you're interested in,
+of course, you'll have all the relevant metrics and metadata,
+config parameters, and so forth at your fingertips.
+And then, you can hit the Clone button
+and create a clone of that workflow
+and just run that clone if you just
+want to repeat a prior experimental run,
+or you can clone it.
+You'll get the UI form that shows all the input parameters,
+and you can tweak the input parameters
+and launch a slightly different variant of this workflow
+to try a different idea.
+So we've made it very easy to hit the Clone button,
+tweak the variant with different configuration parameters,
+and run it.
+And in the future, we'll actually
+extend that to enable rapid iteration
+with the code pertaining to a specific step of the workflow
+as well.
+So right now, you can do rapid iteration
+with configuration parameter changes and, in the future,
+we want to enable that for code changes as well.
+So, at this point, you've done rapid iteration.
+You've launched many different variants of your workflow
+to see what works best for your data, for your use case.
+So let's just say you have 20, 30,
+or more different executions.
+Of course, most of those are actually going to fail.
+Not every execution is going to result in the desired metrics.
+So now you have this long list of experiments.
+And in the List view of these experimental runs,
+you get to see the most important metrics
+right there in the list view.
+So if you've got, say, 20, 30 different execution
+runs, you can quickly hone in on the ones that
+performed well or produced interesting results
+and ignore the ones that didn't perform well
+or didn't have interesting results.
+Select the ones that are interesting.
+Select a subset of experiments that are interesting.
+And then hit the Compare Runs button
+to get a side-by-side comparison of these execution runs.
+And you can do a side-by-side comparison
+of the different config parameters and metrics
+and so on and so forth.
+So you can quickly hone in on what
+was different about these executional runs.
+You can quickly hone in on the technique or the idea that
+led to interesting results.
+So that's how we enable rapid, reliable experimentation.
+It's reliable because the workflow
+itself is backed by containers, which can be run repeatedly.
+All your relevant config parameters and metrics
+are right there at your fingertips.
+All right.
+So those were the key features of Kubeflow Pipelines
+that I wanted to provide as an overview.
+I do want to mention that we have quite a few customers
+using Kubeflow Pipelines.
+We have Descartes Labs.
+And it's possible some of you actually caught
+their presentation, I think, two days back.
+They use it for interesting work on satellite images.
+We also have Carousell, an e-commerce company,
+using it for ranking of images and scoring images
+and tagging them with relevant metadata and so forth.
+We have Baker Hughes using Kubeflow pipelines
+for workflows on industrial data--
+metrics collected from oil and gas rigs and so forth.
+And lastly, because Kubeflow Pipelines is open source,
+we actually have a vast ecosystem
+of partners contributing to it.
+We have Intel that has--
+as an example, Intel has contributed components
+to Kubeflow Pipelines, particularly a component that
+makes it easy to take models and run them on Intel's OpenVINO
+runtime.
+And with that, I'd like to pass things over to Willem.
+WILLEM PIENAAR: Thanks, Aanand.
+Hello, everybody.
+My name is Willem and I lead the data science platform
+team at GOJEK.
+So we're an engineering team embedded within data science
+at GOJEK, and our main focus is building and implementing
+the tools, the products, the platform on which data science
+and machine learning operates at GOJEK.
+So today, I'm going to be talking a little bit about some
+of the pains we had scaling our data and email pipelines
+and how Kubeflow Pipelines helped us to address
+some of those patterns.
+So who or what is GOJEK?
+GOJEK is an Indonesian technology startup.
+We were most famous for ride-hailing on motorcycles,
+but since launching that product a few years ago,
+we've branched into many different products
+and services.
+So ride-hailing in cars, food delivery with GO-FOOD,
+logistics with GO-BOX and GO-SEND,
+digital payments with GO-PAY, and many other lifestyle
+services.
+So today, we are in 15 different verticals,
+and we have 19 different services that
+mold up into one super app.
+And there's one singular goal, and that
+is to solve every workday need that you have.
+So a little bit about our scale.
+GOJEK is originally an Indonesian company,
+but we've now expanded into Southeast Asia
+and to many other countries.
+The application has been downloaded 125 million times
+or more just in Indonesia alone.
+One of our products, GO-FOOD, is one of the largest food
+delivery services in Southeast Asia with over 400,000
+merchants on the platform.
+Like I said, we're in four different countries right now--
+Singapore, Vietnam, and Thailand coming online in the last year.
+Our ride-hailing service has more than 2 million drivers
+on the platform, hundreds of thousands of which
+are online at any given point in time.
+And we process more than 100 million bookings every month.
+So the scale is quite large, and the ability for us
+to impact the company with data science and machine learning
+is quite great.
+So I want to talk about one of the first challenges
+that we faced at GOJEK with machine learning and data
+science, and that was finding the right driver.
+It's a classic problem in ride-hailing,
+and that is dispatch or allocation.
+Which driver do you send to a customer
+when they want to make a booking--
+when they're making a booking?
+So this is an important question because of the amount
+of transactions that are processed
+by a ride-hailing company like GOJEK.
+A system that makes this decision
+can have a very big impact on the bottom line of the company
+if you're looking at millions of orders every month.
+So this was one of the first things the data science
+team needed to solve, is build a system that could decide which
+driver to send to a customer.
+And we originally started with one North Star metric,
+and that metric was conversion.
+So what is the likelihood that a successful trip will
+be completed between a specific pair
+of a customer and a driver?
+And so, when we set out to build the system,
+we looked at that singular objective.
+And then, as a data science platform team
+and as a data science team, we came together
+and we built the systems that actually
+could deploy this model into a serving environment.
+So we implemented airflow for our data pipelines and machine
+learning pipelines, and we implemented Kubernetes
+for our model serving.
+The data scientists went to work in building the pipelines that
+transformed and trained the models,
+and they deployed it into the serving.
+And we integrated with the GOJEK back end and it worked well.
+The back end would send us a list of drivers.
+We'd re-route those drivers according
+to most likelihood of converting,
+and we'd choose the top driver in most cases.
+And there was an uplifting conversion.
+So we all thought it was a job well done.
+We made an impact to the bottom line.
+But it turns out that our needs were greater
+than that, greater than just a single model.
+And the thing we realized was that machine learning
+should provide many levers to a business.
+And in this case, we had provided only a single lever,
+and that was an objective of conversion.
+But actually, in a company that does ride-hailing,
+it's actually a marketplace.
+So there's customers and drivers meeting in this marketplace.
+And there are many different things you can optimize for.
+You can optimize for business metrics
+like conversion, acceptance, cancellation, costs or profit.
+You can optimize for the customer experience.
+You can optimize for the drivers' opportunities
+and the fairness of assigning the work because they're
+ultimately employed, or at least earning an income,
+through this platform.
+So we knew that we needed to support
+more types of objectives in our system, not just conversion.
+And we needed to be able to experiment
+in a more granular way.
+So in a different time and place,
+we wanted to be able to, let's say,
+optimize for cancellation and conversion
+and, in another place, optimize for the drivers' experience
+or their opportunities.
+So what we then decided to do was improve our system.
+Make this driver allocation system a multi-objective system
+that has many different subcomponents,
+many different models.
+And then that would allow us to, on a more granular level,
+decide on a per-request basis, what weighting of an objective
+to rank these drivers on.
+And this worked OK for our serving layer,
+because it's a relatively small problem building
+an ensemble hybrid system like this.
+But it turns out that taking our existing pipelines in Airflow
+and scaling it up to meet the needs
+of a generic, multi-market, multi-service, multi-objective
+system was actually very, very difficult.
+And it was difficult for three key reasons
+that I'll share with you now.
+The first reason was it was very difficult for us to experiment.
+So the typical workflow of a data scientist
+is one of starting in the notebook.
+And they will do their development
+and then they'll get up to a certain point
+where they feel comfortable with something that they've made.
+Maybe they're training a model and they
+see some good performance and they want to productionize it.
+They want to get into production because often,
+with ride-hailing, the only proven model
+is once it gets into production, not offline in a notebook.
+So they're always keen to get it into production
+as quickly as possible.
+And when you transfer this code and rewrite it into Airflow,
+one of the things that happened in our experience
+was that it became tightly coupled to Airflow's
+model of operators.
+And so experimentation went from the notebook to Airflow.
+And Airflow is great at doing data processing,
+and it's really meant for that use
+case of transforming data and updating partitions
+in BigQuery or a data store, but we're
+talking about an ML use case.
+We struggled to scale up to the needs
+of our multi-objective, multi-market, multi-region
+system.
+So in the ML use case, you want to quickly iterate
+on your pipelines.
+You want to quickly inject configuration or data,
+quickly add variance, try TensorFlow or XGBoost
+and see the results and evaluate the results.
+But this was very difficult because of the fact
+that Airflow's based on chronological or time-based
+runs meant for scheduling.
+And so, variance within Airflow was kind of tricky for us
+to do.
+And so, what ended up happening is we had--
+a lot of the workflows were being forked,
+and the graphs ended up growing, and there was
+a lot of duplication of work.
+So the experimentation was very tough for us.
+The second problem we had was there
+was a lot of boilerplate code being written.
+And this was purely due to the fact that the orchestration
+layer--
+the platform itself didn't provide this abstraction
+to the end user.
+And so we knew that we needed to solve this to allow the data
+scientists to focus more on, actually, the modeling
+and what their specialty is.
+And the third thing that we were having a pain with
+was traceability and reproducibility.
+So with our system, we didn't have
+a means of injecting dependencies, so data
+or configuration or any kind of variance.
+So what would end up happening is the data
+scientists would retrieve these dependencies as side
+inputs in their pipelines.
+And these side inputs were almost always untracked,
+and it led to us having very little reproducibility.
+Because if we reran that pipeline and those side inputs
+had changed in the meantime, then you'll
+get different outputs.
+So we knew we needed a way to solve
+this problem of side inputs and untracked dependencies
+in our pipelines.
+And so, we looked at a lot of the tools that
+were available to us outside, and we were already on GCP,
+and one of the tools and systems that we evaluated
+was Kubeflow Pipelines for this use case.
+And the way we ended up approaching and solving
+this problem was as follows.
+So for experimentation, we introduced
+Kubeflow for the ML pipeline part of our data and ML
+pipelines.
+So we split our pipelines into two.
+We still use Airflow for our data transformations
+and publishing to a feature store.
+And this feature store then becomes
+the interface between our ML pipelines
+and our data pipelines.
+So now, this has the effect of allowing your ML pipelines
+to be less data-focused.
+Even though there's occasionally some transformations there,
+the pipelines are a lot smaller and they run a lot faster.
+And with Kubeflow Pipelines, you can spin up
+many different pipeline instances, runs,
+and you can inject parameters into those runs.
+And you can even do it from a notebook.
+So you can quickly do a lot of experimentation
+rapidly and compare these results very easily.
+And to reduce the amount of boilerplate code,
+we introduced Kubeflow components
+to our data scientists and our users.
+So these components are pre-built by Google,
+and a lot of them already exist.
+You can use to use APIs or Dataproc or any kind of systems
+for common operations that you can
+do in your Kubeflow Pipelines.
+But you can also offer your own custom components.
+And this allows us to, as an engineering team,
+abstract the users away from common operations
+like retrieving data from phishers, stores,
+or publishing to our custom in-house deployment
+environments or anything like that.
+So this is how we partly solved some of the engineering
+challenges and abstracted those away.
+And then, finally, one of the key things
+in Kubeflow Pipelines that is very useful
+is the parameterization of the pipeline itself,
+which was lacking in our existing orchestration system.
+So, by allowing parameterization--
+if you trace the inputs to a pipeline
+and if you track the actual pipeline that executed it,
+and if those inputs are immutable,
+then you'll automatically get things
+like traceability, reproducibility,
+and deterministic runs.
+And this was one of the key things
+that we needed because, if you're
+tracking the metadata of a pipeline and the model
+that it produces goes into production
+and it performs well or doesn't perform well,
+you ought to be able to go upstream again, and back,
+and see why that was.
+What led to that model performing well or poorly?
+But let's go to a quick demo where I can show you
+Kubeflow Pipelines in a little bit more detail.
+So this is the Kubeflow Pipelines user interface.
+And if you click on the pipeline section,
+it takes you to some of the pre-built pipelines.
+You'll see the sample ones are the ones that
+are just given to us when you deploy Kubeflow Pipelines.
+I've built one pipeline here and deployed it already,
+which we'll have a look at shortly.
+So these pipelines are essentially templates.
+They're not runs or pipelines that are executed in the past,
+but we can run them.
+We can start them as far as execution
+runs with our parameters.
+So I'm going to click into this one
+that I've built for allocation.
+So this is a very simple pipeline, a very simple example
+to just illustrate how Kubeflow Pipelines works.
+So what you can see here is multiple steps in a pipeline.
+There are a few features from the feature store,
+a training of a model, the building of a prediction set,
+the evaluation of that set, and then the publishing
+of that depending on the evaluation criteria.
+So if you click into one of these tasks--
+one of these steps--
+each step is a docker image that will be run as a container.
+So you can actually see, at the bottom of this page, the docker
+image that will be run.
+So Kubeflow Pipelines also tells you
+which input parameters will be sent to this step,
+and how these inputs will map to docker container.
+So the fact that this is a docker image that
+will be run as a docker container
+means that development, debugging, testing
+is very easy.
+You can do this-- all this actually
+can be done in a way that is completely
+decoupled from Kubeflow itself.
+And you also don't really have any kind of lock-in
+to Kubeflow.
+So if you're moving from Kubeflow to Airflow,
+that process will be simple.
+So, this example-- one more thing
+that I wanted to show you here is
+that you can actually see that the inputs map from one
+task, one step into another.
+And this specific graph has been built both from a notebook
+and published previously, but I'll
+go into a little bit more detail later
+in showing you how to build this from a notebook.
+So if you have a pipeline already registered
+with Kubeflow Pipelines, you can create an instance of it
+by clicking on Create Run.
+So you can give your pipeline run a name
+and you can choose an experiment, an experiment being
+nothing more than a grouping of comparable runs.
+But for us-- and in terms of the three problems
+we had-- was rapid experimentation being the first
+and the third being the traceability.
+But the key thing that we needed was
+being able to inject these parameters into our runs.
+So this section is really critical for us,
+being able to generalize our pipeline,
+extract the complexities and the things that change,
+and create parameters from them.
+And that allows us to more easily scale to many markets
+because we can have parameters to define
+service types or the region where a specific pipeline
+should be targeting.
+And so these parameters were really key for us.
+So instead of looking at these parameters,
+I can actually show you the notebook
+that created this pipeline.
+So if you click on the side here on the Notebooks button,
+it'll actually direct you to a Jupyter instance running
+in the same Kubernetes cluster.
+So when you deploy Kubeflow, it actually
+deploys a Jupyter deployment with that Kubeflow Pipelines
+deployment.
+And these two are able to communicate with each other,
+and it's a little bit more abstract from the end user.
+So if you click on this pre-built notebook
+that I have here for us, I can walk you
+through the process of creating and authoring this pipeline.
+So how this works is you initially
+start with some steps of housekeeping and defining
+some global variables, one of which that is important
+is defining your Kubeflow SDK package.
+And then, once you have that URL,
+you can just install it with PIP so the installation
+is super easy.
+And then you're ready to go.
+So the first thing we do is we define,
+or we connect this Kubeflow client, this SDK,
+to our local Kubeflow Pipelines deployment.
+It'll automatically find the Kubeflow Pipelines deployment
+if it's in the same cluster.
+If it's in a remote cluster or if you're
+working on a local environment, you need to specify a URL.
+Then, you specify an experiment name.
+And this name, in our case, will just
+be allocation because that's what we're trying to solve.
+So this will just be a grouping.
+And if you actually go back to the experiments that
+are available here, I've already done some runs,
+and there are some historic runs already existing.
+So the next step is defining the pipeline.
+This is the critical part of actually using
+Kubeflow Pipelines.
+And there are basically two steps to this.
+The first is defining the operations that
+will be executed, and then secondly is connecting those
+up into a graph.
+So what we do is--
+I think what Aanand was talking about earlier
+is calling this class of container
+up and creating instances of these operations.
+And we parse in the arguments that we
+want to define as what makes this operation unique.
+And the two most important parts here, which docker image
+will be run and what will be the arguments that we
+send to that docker image.
+And again, this makes debugging and testing and development
+very easy because you can test the specific operation--
+the step in your pipeline-- independently of Kubeflow
+Pipelines.
+You also need to give it a name and just tell it
+where output data will be available once it's completed.
+And we wrap this whole container operation in a function call
+because this makes calling this, or creating
+instances of this operation later, a little bit simpler.
+So in this case, we've got five of these operations-- retrieval
+of features, the training of a model,
+creating a prediction set, and then
+an evaluation step with an RSC-curve,
+and the publishing of the model.
+Now, the most important part is defining the pipeline.
+So, here, it's nothing more than a function call.
+So we've just called it Allocation Pipeline.
+And the two important parts here would be, first,
+defining the input parameters.
+And these arguments to the function
+call actually become the parameters
+that are available to you here.
+So if you go back to the pipeline that we've created
+and you create a run, these parameters
+that are available to you actually
+come from the arguments of this function call.
+So this is great for us in a lot of ways
+because, often, we're authoring these pipelines
+and the end users are not coders.
+They're just maybe business users or analysts
+that just want to do some analysis
+or just explore what an impact the model can have
+and just experiment a bit.
+So by publishing and compiling this workflow into something
+that can be deployed to Kubeflow Pipelines,
+end users can just use a user interface and interact
+with the system like that.
+They don't need to be able to code.
+So then we decorate this function
+call with Kubeflow Pipelines decorator, and give it a name
+and a description, and then, importantly, we
+define the steps.
+And here, we've got a feature achievable step.
+So we just call the function we've defined already.
+We specify the input parameters.
+These input parameters are the same ones
+that are coming into this function call.
+And here's the important part.
+The second step is the training step,
+and it depends on the first step because you're
+mapping the output from the first step
+into this second step.
+So you're not actually building the graph directly,
+but you're specifying inputs and outputs.
+And once you've completed these steps,
+you can compile this pipeline, and I'll do that right now.
+So I've compiled this pipeline and this allocation zip file
+will be available in this Jupyter environment.
+And this can be submitted to Kubeflow.
+And once you've submitted it, it'll
+be available here as part of your pipelines.
+But a more interesting way that we use Kubeflow Pipelines
+is actually starting the runs using
+this allocation, or this compiled pipeline,
+from the notebook.
+So the Kubeflow SDK--
+the pipeline SDK allows you to run a pipeline directly.
+So you can specify experiment, give your pipeline run a name,
+specify the pipeline, and then inject the parameters.
+And this allows for that rapid experimentation.
+So in this case, what I'm going to do
+is I'm going to start a run.
+And one of the parameters will be a list of features
+that we want to send into that run.
+And we've also got a target of which objective
+we're optimizing for.
+So I can start a run here and it'll create a little run
+link for us, and I can delete a bunch of these features.
+And I can run that again and now I've
+got two runs that are being executed.
+I can imagine, if you want to experiment very quickly,
+you can have a four-loop there.
+You can do a grid search or parameter search.
+You can spin up 100 pipelines if you want to
+and compare them in Kubeflow Pipelines.
+So I'm just going to do this--
+just sort of release those features.
+But if we go to Kubeflow Pipelines
+and we go to our experiments, you
+can see that there are now two runs running here.
+Click on one of these.
+Feature retrieval has already happened.
+It's output a data set.
+And you can see the input and output parameters
+through this step.
+If you click on Training, we can see
+that this data set's already been
+loaded by the training set.
+This is a specific docker container
+that's running inside of this Kubernetes cluster.
+And you get all the benefits of Kubernetes
+because it's running in a Kubernetes cluster.
+So as engineers, this allows us to build platforms
+on this existing tooling.
+Click on the logs, you'll see that training is already
+running.
+But for our use case, I think I'll
+show you some of the previously executed runs.
+So if you click on this run, this is a completed run.
+I can show you some of the functionality
+that Aanand was speaking about earlier.
+So one of the interesting things that we can see
+is, of course, the inputs and outputs at each step,
+but also the output artifacts that are available to you.
+So one of the output artifacts that we have available to us
+here is, at the evaluation stage, or step,
+is an RSC-curve.
+So as an end user, you can easily draw into this curve
+and evaluate the performance of the specific run.
+But just doing this on a single run
+is not really that interesting.
+It's useful, but a more powerful way
+to do this is to look at multiple of these runs
+together.
+So we can actually click on multiple of these runs
+and compare them together.
+And you can see that the only thing that varies here
+is the input parameters of the list of features.
+So here, we have more or less features
+for each of these runs.
+Everything else is constant.
+So what Kubeflow Pipelines does is it actually shows you
+the output artifacts at each stage that has the same name,
+but also shows you an aggregated view.
+So here, you get an aggregated view of all three
+of these runs.
+So you as a user can draw into the performance of these runs
+and compare and contrast them.
+So if you're spending up many pipelines,
+you can quickly compare them.
+And even end users that are not developers
+can quickly compare them.
+And some more of the pipeline output
+artifacts that I want to show you is captured
+in a TFX pipeline here.
+So this is a bit more of a complicated run.
+It has more steps to it.
+So this is using the New York City taxi data
+and it's a TensorFlow model that it's training.
+So some of the other artifacts that
+can be produced, for example, is a confusion matrix.
+So this matrix is great for quickly
+analyzing the classifier.
+We've also got a table, which is a very practical thing
+to expose to end users.
+You can just quickly get a sample of data
+and expose it to the end user.
+They don't need to open up BigQuery
+or any kind of CSV file on GCS.
+One of my favorite output artifacts
+is just a static HTML.
+As an engineer, this unlocks a lot of doors
+because now we can embed any HTML and JavaScript
+and render anything within Kubeflow Pipelines for our end
+users.
+All we need to do is bolt the docker image
+that produces this.
+So in this case, the end user can quickly
+analyze the model itself and just use this existing
+static HTML and data set.
+And then a more powerful thing that Aanand
+was showcasing earlier is the fact
+that we have tensor boards available to us.
+So at the training step, we can actually
+click on Open TensorBoard.
+It's one of the artifacts that's produced,
+and the end user can then draw into this and, in more detail,
+analyze their model and the specific TensorFlow run,
+the distributions, histograms, and anything like that.
+So I'd implore you to have a look at Kubeflow Pipelines.
+And in fact, if we go back to our presentation,
+you can easily deploy a Kubeflow Pipelines using
+the deploy.kubeflow.cloud.
+It's very simple.
+It'll only take you one or two minutes to do that.
+And yeah, I encourage you to give it a go.
